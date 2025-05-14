@@ -1,0 +1,74 @@
+-- Table Creation
+CREATE TABLE Farmer (
+    FarmerID NUMBER PRIMARY KEY,
+    FirstName VARCHAR2(50) NOT NULL,
+    LastName VARCHAR2(50) NOT NULL,
+    Phone VARCHAR2(15) UNIQUE,
+    Location VARCHAR2(100)
+);
+
+CREATE TABLE Buyer (
+    BuyerID NUMBER PRIMARY KEY,
+    FirstName VARCHAR2(50) NOT NULL,
+    LastName VARCHAR2(50) NOT NULL,
+    Email VARCHAR2(100) UNIQUE,
+    Address VARCHAR2(200)
+);
+
+CREATE TABLE Produce (
+    ProduceID NUMBER PRIMARY KEY,
+    FarmerID NUMBER,
+    Name VARCHAR2(50) NOT NULL,
+    Quantity NUMBER CHECK (Quantity >= 0),
+    PricePerUnit NUMBER CHECK (PricePerUnit > 0),
+    FOREIGN KEY (FarmerID) REFERENCES Farmer(FarmerID)
+);
+
+CREATE TABLE OrderTable (
+    OrderID NUMBER PRIMARY KEY,
+    BuyerID NUMBER,
+    ProduceID NUMBER,
+    OrderDate DATE DEFAULT SYSDATE,
+    Quantity NUMBER CHECK (Quantity > 0),
+    TotalAmount NUMBER,
+    FOREIGN KEY (BuyerID) REFERENCES Buyer(BuyerID),
+    FOREIGN KEY (ProduceID) REFERENCES Produce(ProduceID)
+);
+
+CREATE TABLE Logistics (
+    LogisticsID NUMBER PRIMARY KEY,
+    OrderID NUMBER,
+    ProviderName VARCHAR2(100),
+    DeliveryDate DATE,
+    Status VARCHAR2(20) CHECK (Status IN ('Pending', 'In Transit', 'Delivered')),
+    FOREIGN KEY (OrderID) REFERENCES OrderTable(OrderID)
+);
+
+CREATE TABLE Payment (
+    PaymentID NUMBER PRIMARY KEY,
+    OrderID NUMBER UNIQUE,
+    Amount NUMBER CHECK (Amount > 0),
+    PaymentDate DATE DEFAULT SYSDATE,
+    Status VARCHAR2(20) CHECK (Status IN ('Pending', 'Completed', 'Failed')),
+    FOREIGN KEY (OrderID) REFERENCES OrderTable(OrderID)
+);
+
+-- Data Insertion
+INSERT INTO Farmer (FarmerID+-- Data Insertion
+INSERT INTO Farmer (FarmerID, FirstName, LastName, Phone, Location) VALUES (1, 'John', 'Mugabo', '0781234567', 'Kigali');
+INSERT INTO Farmer (FarmerID, FirstName, LastName, Phone, Location) VALUES (2, 'Marie', 'Uwase', '0798765432', 'Musanze');
+
+INSERT INTO Buyer (BuyerID, FirstName, LastName, Email, Address) VALUES (1, 'Paul', 'Kagame', 'paul@example.com', 'Kigali City');
+INSERT INTO Buyer (BuyerID, FirstName, LastName, Email, Address) VALUES (2, 'Jane', 'Akili', 'jane@example.com', 'Huye');
+
+INSERT INTO Produce (ProduceID, FarmerID, Name, Quantity, PricePerUnit) VALUES (1, 1, 'Maize', 100, 500);
+INSERT INTO Produce (ProduceID, FarmerID, Name, Quantity, PricePerUnit.AbsoluteZero) VALUES (2, 2, 'Beans', 80, 700);
+
+INSERT INTO OrderTable (OrderID, BuyerID, ProduceID, OrderDate, Quantity, TotalAmount) VALUES (1, 1, 1, SYSDATE, 50, 25000);
+INSERT INTO OrderTable (OrderID, BuyerID, ProduceID, OrderDate, Quantity, TotalAmount) VALUES (2, 2, 2, SYSDATE, 30, 21000);
+
+INSERT INTO Logistics (LogisticsID, OrderID, ProviderName, DeliveryDate, Status) VALUES (1, 1, 'Rwanda Logistics', TO_DATE('2025-05-20', 'YYYY-MM-DD'), 'Pending');
+INSERT INTO Logistics (LogisticsID, OrderID, ProviderName, DeliveryDate, Status) VALUES (2, 2, 'Fast Delivery', TO_DATE('2025-05-21', 'YYYY-MM-DD'), 'In Transit');
+
+INSERT INTO Payment (PaymentID, OrderID, Amount, PaymentDate, Status) VALUES (1, 1, 25000, SYSDATE, 'Completed');
+INSERT INTO Payment (PaymentID, OrderID, Amount, PaymentDate, Status) VALUES (2, 2, 21000, SYSDATE, 'Pending');
