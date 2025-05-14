@@ -1,0 +1,128 @@
+-- Create Holiday Table
+CREATE TABLE PublicHolidays (
+    HolidayDate DATE PRIMARY KEY,
+    HolidayName VARCHAR2(100)
+);
+
+-- Insert Holidays for June 2025
+INSERT INTO PublicHolidays (HolidayDate, HolidayName) VALUES (TO_DATE('2025-06-01', 'YYYY-MM-DD'), 'Heroes Day');
+INSERT INTO PublicHolidays (HolidayDate, HolidayName) VALUES (TO_DATE('2025-06-04', 'YYYY-MM-DD'), 'Liberation Day');
+
+-- Create Audit Table
+CREATE TABLE AuditLog (
+    LogID NUMBER PRIMARY KEY,
+    UserID VARCHAR2(50),
+    ActionDate DATE,
+    Operation VARCHAR2(50),
+    TableName VARCHAR2(50),
+    Status VARCHAR2(20)
+);
+
+-- Sequence for AuditLog
+CREATE SEQUENCE AuditLog_Seq START WITH 1 INCREMENT BY 1;
+
+-- Compound Trigger to Restrict DML and Log Actions
+CREATE OR REPLACE TRIGGER Restrict_DML FOR INSERT OR UPDATE OR DELETE ON Farmer COMPOUND TRIGGER
+    -- Variables declaration in declaration section
+    v_day VARCHAR2(10);
+    v_holiday NUMBER := 0;
+    v_operation VARCHAR2(10);
+    
+    BEFORE STATEMENT IS
+    BEGIN
+        -- Determine the operation type
+        IF INSERTING THEN
+            v_operation := 'INSERT';
+        ELSIF UPDATING THEN
+            v_operation := 'UPDATE';
+        ELSIF DELETING THEN
+            v_operation := 'DELETE';
+        END IF;
+        
+        -- Get the day of week
+        SELECT TO_CHAR(SYSDATE, 'DY') INTO v_day FROM DUAL;
+        
+        -- Check if it's a weekend
+        IF v_day IN ('SAT', 'SUN') THEN
+            -- Log the denied operation
+            INSERT INTO AuditLog (LogID, UserID, ActionDate, Operation, TableName, Status)
+            VALUES (AuditLog_Seq.NEXTVAL, USER, SYSDATE, v_operation, 'Farmer', 'Denied - Weekend');
+            
+            -- Raise application error
+            RAISE_APPLICATION_ERROR(-20001, 'DML operations are not allowed on weekends.');
+        END IF;
+        
+        -- Check if it's a holiday
+        BEGIN
+            SELECT COUNT(*) INTO v_holiday
+            FROM PublicHolidays
+            WHERE HolidayDate = TRUNC(SYSDATE);
+        EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+                v_holiday := 0;
+        END;
+        
+        IF v_holiday > 0 THEN
+            -- Log the denied operation
+            INSERT INTO AuditLog (LogID, UserID, ActionDate, Operation, TableName, Status)
+            VALUES (AuditLog_Seq.NEXTVAL, USER, SYSDATE, v_operation, 'Farmer', 'Denied - Holiday');
+            
+            -- Raise application error
+            RAISE_APPLICATION_ERROR(-20002, 'DML operations are not allowed on public holidays.');
+        END IF;
+    END BEFORE STATEMENT;
+    
+    AFTER STATEMENT IS
+    BEGIN
+        -- Log successful operation
+        INSERT INTO AuditLog (LogID, UserID, ActionDate, Operation, TableName, Status)
+        VALUES (AuditLog_Seq.NEXTVAL, USER, SYSDATE, v_operation, 'Farmer', 'Allowed');
+    END AFTER STATEMENT;
+END;
+/
+-- Stored Procedure for Order Processing
+CREATE OR REPLACE PROCEDURE ProcessOrder (
+    p_BuyerID IN NUMBER,
+    p_ProduceID IN NUMBER,
+    p_Quantity IN NUMBER
+) AS
+    v_Available NUMBER;
+    v_Price NUMBER;
+    v_OrderID NUMBER;
+BEGIN
+    -- Check availability
+    SELECT Quantity, PricePerUnit INTO v_Available, v_Price
+    FROM Produce
+    WHERE ProduceID = p_ProduceID
+    FOR UPDATE;
+    
+    IF v_Available < p_Quantity THEN
+        RAISE_APPLICATION_ERROR(-20003, 'Insufficient stock.');
+    END IF;
+    
+    -- Generate OrderID
+    SELECT MAX(OrderID) + 1 INTO v_OrderID FROM OrderTable;
+    IF v_OrderID IS NULL THEN
+        v_OrderID := 1;
+    END IF;
+    
+    -- Insert Order
+    INSERT INTO OrderTable (OrderID, BuyerID, ProduceID, Quantity, TotalAmount)
+    VALUES (v_OrderID, p_BuyerID, p_ProduceID, p_Quantity, p_Quantity * v_Price);
+    
+    -- Update Produce Quantity
+    UPDATE Produce
+    SET Quantity = Quantity - p_Quantity
+    WHERE ProduceID = p_ProduceID;
+    
+    -- Insert Payment
+    INSERT INTO Payment (PaymentID, OrderID, Amount, Status)
+    VALUES (v_OrderID, v_OrderID, p_Quantity * v_Price, 'Pending');
+    
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE;
+END;
+/
