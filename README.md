@@ -19,7 +19,8 @@ Rwandan smallholder farmers face challenges accessing fair markets due to digita
 - **Phase VIII**: Compiled documentation and presentation.
 
 ## Screenshots
-- **ER Diagram**: 
+- **ER Diagram**: ![ER-Diagram](https://github.com/user-attachments/assets/6c84210a-e07a-4e47-8e90-2d483fb1609c)
+
 - **UML Diagram**:![DBMS ER diagram (UML notation) - Page 1](https://github.com/user-attachments/assets/c24fff2c-2225-4a8b-885d-2351866202c0)
 
 - **OEM Dashboard**:![pdb1](https://github.com/user-attachments/assets/842d9bc7-2920-4555-ac3e-2c4d25ca3016)
